@@ -19,7 +19,7 @@ class ChatLogViewMode: ObservableObject {
         fetchChatMessenger()
     }
     
-
+    @Published var count = 0
     func handleSend() {
         
         guard let fromId = FirebaseMess.shared.auth.currentUser?.uid else {return}
@@ -60,6 +60,7 @@ class ChatLogViewMode: ObservableObject {
             self.storeRecentMessenger()
             
             self.texMessenger = ""
+            
             self.errMessenger = "Successfully upload textMessenger from toID"
             print(self.errMessenger)
             
@@ -96,6 +97,9 @@ class ChatLogViewMode: ObservableObject {
                         }
                     }
                 })
+                DispatchQueue.main.async {
+                    self.count += 1
+                }
             }
     }
     
@@ -124,7 +128,12 @@ class ChatLogViewMode: ObservableObject {
             .collection(FirebaseConstant.messenger)
             .document(fromId)
         
-        try? refRecipient.setData(from: dataRecent) { error in
+        guard let currentUser = FirebaseMess.shared.auth.currentUser else {return}
+    
+        
+        let dataRecentRecipient = RecentMessenger(id: nil, text: self.texMessenger, fromId: fromId, toId: toId, email: currentUser.email ?? "", profileImageURL: chatUserdata.imageProfileURL, timestamp: Date())
+        
+        try? refRecipient.setData(from: dataRecentRecipient) { error in
             if let error = error {
                 self.errMessenger = "Failed to store recent messenger fr Recipient: \(error)"
                 return
@@ -160,46 +169,25 @@ struct ChatLogView: View {
     }
     private var messagesView: some View {
             ScrollView {
-                ForEach(clv.allMessenger) { am in
-                    if am.fromId == FirebaseMess.shared.auth.currentUser?.uid {
-                        HStack {
-                            Spacer()
-                            HStack {
-                                Text(am.text)
-                                    .foregroundColor(.white)
-                            }
-                            .padding()
-                            .background(Color.blue)
-                            .cornerRadius(8)
+                ScrollViewReader { scrollViewProxy in
+                    VStack {
+                        ForEach(clv.allMessenger) { am in
+                            ViewMessenger(am:am)
                         }
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                    } else {
-                        HStack {
-                            
-                            HStack {
-                                Text(am.text)
-                                    .foregroundColor(Color(.label))
-                            }
-                            .padding()
-                            .background(Color.white)
-                            .cornerRadius(8)
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                        .padding(.top, 8)
+                        HStack{ Spacer() }
+                        .frame(height: 50)
+                        .id("DownHere")
                     }
-
-                        
-                   
-                                        
+                    .onReceive(clv.$count) { _ in
+                                withAnimation(.easeOut(duration: 0.5)) {
+                                    scrollViewProxy.scrollTo("DownHere", anchor: .bottom)
+                    }
                 }
-                HStack{ Spacer() }
-                            .frame(height: 50)
-                        }
-                        .background(Color(.init(white: 0.95, alpha: 1)))
-
-                    }
+            }
+        }
+            .background(Color(.init(white: 0.95, alpha: 1)))
+}
+    
     private var chatBottomBar: some View {
             HStack(spacing: 16) {
                 Image(systemName: "photo.on.rectangle")
@@ -225,6 +213,40 @@ struct ChatLogView: View {
                        .padding(.horizontal)
                        .padding(.vertical, 7)
                    }
+}
+
+struct ViewMessenger: View {
+    let am: ChatMessenger
+    var body: some View {
+        VStack {
+            if am.fromId == FirebaseMess.shared.auth.currentUser?.uid {
+                HStack {
+                    Spacer()
+                    HStack {
+                        Text(am.text)
+                            .foregroundColor(.white)
+                    }
+                    .padding()
+                    .background(Color.blue)
+                    .cornerRadius(8)
+                }
+            } else {
+                HStack {
+                    
+                    HStack {
+                        Text(am.text)
+                            .foregroundColor(Color(.label))
+                    }
+                    .padding()
+                    .background(Color.white)
+                    .cornerRadius(8)
+                    Spacer()
+                }
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
 }
 
 private struct DescriptionPlaceholder: View {

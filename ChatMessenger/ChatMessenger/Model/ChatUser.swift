@@ -12,7 +12,9 @@ struct ChatUser: Identifiable {
     
     var id : String {uid}
     
-    var email,uid,imageProfileURL : String
+    var email : String
+    var uid: String
+    var imageProfileURL: String
     
     init(data: [String:Any]) {
         self.uid = data["uid"] as? String ?? ""

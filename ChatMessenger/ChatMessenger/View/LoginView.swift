@@ -111,7 +111,7 @@ struct LoginView: View {
                 return
             }
             self.errorMessenger = "Succesfully to login with uid: \(result?.user.uid ?? "")"
-            didCompleteLoginProcess()
+            self.didCompleteLoginProcess()
         }
         
     }
@@ -167,7 +167,7 @@ struct LoginView: View {
                     print(errorMessenger)
                     return
                 }
-                didCompleteLoginProcess()
+                self.didCompleteLoginProcess()
                 print("Storage Success")
             }
         

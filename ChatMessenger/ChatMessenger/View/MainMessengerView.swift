@@ -36,7 +36,7 @@ class MainMessViewMode: ObservableObject {
                     return
                 }
                 guard let data = querySnapshot?.data() else {return}
-                
+                //decode firestore
                 self.chatUser = ChatUser(data: data)
             }
     }
@@ -53,11 +53,12 @@ class MainMessViewMode: ObservableObject {
     
     func fetchRecentMessenger(){
         guard let uid = FirebaseMess.shared.auth.currentUser?.uid else {return}
-        
+        self.recentMessenger.removeAll()
+        //clear data khi logout
         FirebaseMess.shared.firestore.collection(FirebaseConstant.recent_messenger)
             .document(uid)
             .collection(FirebaseConstant.messenger)
-        
+            .order(by: FirebaseConstant.timestamp)
             .addSnapshotListener { querySnapshot, err in
                 if let err = err {
                     self.errMessenger = "Failed to fetch recent_messenger: \(err)"
@@ -67,14 +68,16 @@ class MainMessViewMode: ObservableObject {
                     let docId = snapshot.document.documentID
                     if let index = self.recentMessenger.firstIndex(where: { rmes in
                         return rmes.id == docId
+                        // vi tri index trong array cua messenger cu
                     }) {
                         self.recentMessenger.remove(at: index)
+                        //remove array o vi tri cu~
                     }
                     do {
                         if let datarecent = try snapshot.document.data(as: RecentMessenger.self) {
                             
                             self.recentMessenger.insert(datarecent, at: 0)
-                            
+                            //add messenger moi vao vi tri dau tien
                         }
                         
                     } catch {
@@ -91,7 +94,10 @@ struct MainMessengerView: View {
     @State var isAddNewMessenger = false
     @State var isShowChatLogView = false
     
+    
     @ObservedObject private var vm = MainMessViewMode()
+    
+//    private var chatLogViewModel = ChatLogViewMode(chatUser: nil)
     
     var body: some View {
         NavigationView {
@@ -152,18 +158,28 @@ struct MainMessengerView: View {
             .fullScreenCover(isPresented: $vm.isCurrentUserLogOut, onDismiss: nil) {
                 LoginView(didCompleteLoginProcess: {
                     vm.isCurrentUserLogOut = false
-                    vm.fetchChatUser()
+                    self.vm.fetchChatUser()
+                    self.vm.fetchRecentMessenger()
+                    //nap lai du lieu array khi login
                 })
             }
     }
+    
+    
     
     private var messengerView: some View {
         ScrollView {
             
             ForEach(vm.recentMessenger) { rmes in
                 VStack {
-                    NavigationLink {
-                        Text("ChatLogView")
+//                    NavigationLink {
+//                        Text("ChatLogView")
+//                    }
+                    Button {
+//                        let uid = FirebaseMess.shared.auth.currentUser?.uid == rmes.fromId ? rmes.fromId : rmes.toId
+//                        self.chatUser = .init(data: [FirebaseConstant.profileImageURL: rmes.profileImageURL, FirebaseConstant.email: rmes.email, FirebaseConstant.uid: uid])
+//                        self.chatLogViewModel.chatUser = self.chatUser
+//                        self.isShowChatLogView.toggle()
                     } label: {
                         HStack(spacing: 16) {
                             WebImage(url: URL(string: rmes.profileImageURL))
@@ -175,14 +191,14 @@ struct MainMessengerView: View {
                                 .overlay(RoundedRectangle(cornerRadius: 60).stroke(Color.black, lineWidth: 1))
                                 .shadow(radius: 2)
                             VStack(alignment: .leading) {
-                                Text(rmes.email)
+                                Text(rmes.username)
                                     .foregroundColor(Color(.label))
                                 Text(rmes.text)
                                     .foregroundColor(Color(.lightGray))
                             }
                             Spacer()
                             
-                            Text ("22")
+                            Text (rmes.timeSendMessenger)
                                 .font(.system(size: 14, weight: .semibold))
                         }
                     }

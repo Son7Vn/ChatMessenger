@@ -11,6 +11,7 @@ struct FirebaseConstant {
     
     static let messenger = "messennger"
     static let recent_messenger = "recent_messenger"
+    static let uid = "uid"
     static let fromId = "fromId"
     static let toId = "toId"
     static let email = "email"

@@ -26,7 +26,13 @@ class NewMessengerViewMode: ObservableObject {
                 }
                 querrySnapshot?.documents.forEach({ snapshot in
                     let data = snapshot.data()
-                    self.allChatUser.append(.init(data: data))
+                    let user = ChatUser(data: data)
+                    
+                    if user.uid != FirebaseMess.shared.auth.currentUser?.uid {
+                        self.allChatUser.append(.init(data: data))
+                    }
+                    
+                    
                 })
             }
                 
