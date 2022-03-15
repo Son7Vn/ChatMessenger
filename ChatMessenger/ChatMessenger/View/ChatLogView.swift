@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SDWebImageSwiftUI
+import Firebase
 
 class ChatLogViewMode: ObservableObject {
     @Published var texMessenger = ""
@@ -69,11 +70,15 @@ class ChatLogViewMode: ObservableObject {
     }
     
     @Published var allMessenger = [ChatMessenger]()
-    private func fetchChatMessenger() {
+    
+    var firestoreListener: ListenerRegistration?
+    func fetchChatMessenger() {
+        
+        self.allMessenger.removeAll()
         guard let fromId = FirebaseMess.shared.auth.currentUser?.uid else {return}
         guard let toId = chatUser?.uid else {return}
         
-        FirebaseMess.shared.firestore.collection(FirebaseConstant.messenger)
+        firestoreListener = FirebaseMess.shared.firestore.collection(FirebaseConstant.messenger)
             .document(fromId)
             .collection(toId)
             .order(by: FirebaseConstant.timestamp)
@@ -90,10 +95,11 @@ class ChatLogViewMode: ObservableObject {
                             if let snapshotdata = try snapshot.document.data(as: ChatMessenger.self) {
                                 //decode tu firestore/ phai cho vao if de check ca nil snapshotdata
                                 self.allMessenger.append(snapshotdata)
+                                print("Appending chatMessenger in ChatLogView")
                                 
                             }
                         } catch {
-                            print("Failed to fetch data: \(error)")
+                            print("Failed to fetchChatMessenger: \(error)")
                         }
                     }
                 })
@@ -108,7 +114,7 @@ class ChatLogViewMode: ObservableObject {
         guard let chatUserdata = chatUser else {return}
         guard let toId = self.chatUser?.uid else {return}
         
-        let dataRecent = RecentMessenger(id: nil, text: self.texMessenger, fromId: fromId, toId: toId, email: chatUserdata.email, profileImageURL: chatUserdata.imageProfileURL, timestamp: Date())
+        let dataRecent = RecentMessenger(id: nil, text: self.texMessenger, fromId: fromId, toId: toId, email: chatUserdata.email, imageProfileURL: chatUserdata.imageProfileURL, timestamp: Date())
         
         let refSending = FirebaseMess.shared.firestore.collection(FirebaseConstant.recent_messenger)
             .document(fromId)
@@ -123,15 +129,17 @@ class ChatLogViewMode: ObservableObject {
             self.errMessenger = "stored recent messenger is success!"
             print(self.errMessenger)
         }
+        
+        
+        guard let currentUser = FirebaseMess.shared.currentUser else {return}
+    
+        
+        let dataRecentRecipient = RecentMessenger(id: nil, text: self.texMessenger, fromId: fromId, toId: toId, email: currentUser.email, imageProfileURL: currentUser.imageProfileURL, timestamp: Date())
+        
         let refRecipient = FirebaseMess.shared.firestore.collection(FirebaseConstant.recent_messenger)
             .document(toId)
             .collection(FirebaseConstant.messenger)
-            .document(fromId)
-        
-        guard let currentUser = FirebaseMess.shared.auth.currentUser else {return}
-    
-        
-        let dataRecentRecipient = RecentMessenger(id: nil, text: self.texMessenger, fromId: fromId, toId: toId, email: currentUser.email ?? "", profileImageURL: chatUserdata.imageProfileURL, timestamp: Date())
+            .document(currentUser.uid)
         
         try? refRecipient.setData(from: dataRecentRecipient) { error in
             if let error = error {
@@ -146,14 +154,14 @@ class ChatLogViewMode: ObservableObject {
 
 struct ChatLogView: View {
 
-    let chatUser: ChatUser?
+//    let chatUser: ChatUser?
     @ObservedObject var clv : ChatLogViewMode
 
-    init(chatUser:ChatUser?) {
-        self.chatUser = chatUser
-        self.clv = .init(chatUser: chatUser)
-        // custom init de put chatUser len ChatLogViewMode
-    }
+//    init(chatUser:ChatUser?) {
+//        self.chatUser = chatUser
+//        self.clv = .init(chatUser: chatUser)
+//        // custom init de put chatUser len ChatLogViewMode
+//    }
 
     var body: some View {
         ZStack {
@@ -164,8 +172,11 @@ struct ChatLogView: View {
                     .background(Color.white.ignoresSafeArea())
             }
         }
-        .navigationTitle(chatUser?.email ?? "")
+        .navigationTitle(clv.chatUser?.email ?? "")
             .navigationBarTitleDisplayMode(.inline)
+            .onDisappear {
+                clv.firestoreListener?.remove()
+            }
     }
     private var messagesView: some View {
             ScrollView {

@@ -37,7 +37,8 @@ class MainMessViewMode: ObservableObject {
                 }
                 guard let data = querySnapshot?.data() else {return}
                 //decode firestore
-                self.chatUser = ChatUser(data: data)
+                self.chatUser = .init(data: data)
+                FirebaseMess.shared.currentUser = self.chatUser
             }
     }
     
@@ -50,12 +51,15 @@ class MainMessViewMode: ObservableObject {
     }
     
     @Published var recentMessenger = [RecentMessenger]()
+    private var firestoreListener : ListenerRegistration?
     
     func fetchRecentMessenger(){
         guard let uid = FirebaseMess.shared.auth.currentUser?.uid else {return}
+        
+        firestoreListener?.remove()
         self.recentMessenger.removeAll()
         //clear data khi logout
-        FirebaseMess.shared.firestore.collection(FirebaseConstant.recent_messenger)
+        firestoreListener = FirebaseMess.shared.firestore.collection(FirebaseConstant.recent_messenger)
             .document(uid)
             .collection(FirebaseConstant.messenger)
             .order(by: FirebaseConstant.timestamp)
@@ -97,7 +101,8 @@ struct MainMessengerView: View {
     
     @ObservedObject private var vm = MainMessViewMode()
     
-//    private var chatLogViewModel = ChatLogViewMode(chatUser: nil)
+    private var chatLogViewModel = ChatLogViewMode(chatUser: nil)
+    //creat a referance to control a ViewModel(ChatLogViewModel) what we fetched & when we fetched for where which user clicking on
     
     var body: some View {
         NavigationView {
@@ -106,7 +111,8 @@ struct MainMessengerView: View {
                 messengerView
                 
                 NavigationLink("", isActive: $isShowChatLogView) {
-                    ChatLogView(chatUser: self.chatUser)
+                    ChatLogView(clv: chatLogViewModel)
+                    // khoi tao ChatLogView voi chatUser = nil
                 }
 
             }
@@ -152,6 +158,7 @@ struct MainMessengerView: View {
                 .init(title: Text("Settings"), message: Text("What do you want to do?"), buttons: [ .destructive(Text("Sign Out"), action: {
                     vm.signOut()
                     
+                    
                 }), . cancel()
                 ])
             }
@@ -166,23 +173,30 @@ struct MainMessengerView: View {
     }
     
     
-    
+    @State var searchText = ""
+    @State var isSearching = false
     private var messengerView: some View {
         ScrollView {
+            SearchBar(searchText: $searchText, isSearching: $isSearching)
             
-            ForEach(vm.recentMessenger) { rmes in
+            ForEach((vm.recentMessenger).filter({ "\($0)".contains(self.searchText) || searchText.isEmpty
+            })) { rmes in
                 VStack {
-//                    NavigationLink {
-//                        Text("ChatLogView")
-//                    }
                     Button {
-//                        let uid = FirebaseMess.shared.auth.currentUser?.uid == rmes.fromId ? rmes.fromId : rmes.toId
-//                        self.chatUser = .init(data: [FirebaseConstant.profileImageURL: rmes.profileImageURL, FirebaseConstant.email: rmes.email, FirebaseConstant.uid: uid])
-//                        self.chatLogViewModel.chatUser = self.chatUser
-//                        self.isShowChatLogView.toggle()
+                        let uid = FirebaseMess.shared.auth.currentUser?.uid == rmes.fromId ? rmes.toId : rmes.fromId
+                        // check xem la messenger di hay den de lay dc du'ng uid can thiet
+                        self.chatUser = .init(data: [FirebaseConstant.email: rmes.email, FirebaseConstant.imageProfileURL: rmes.imageProfileURL, FirebaseConstant.uid: uid])
+                        
+                        //gan gtri cho chatUser
+                        self.chatLogViewModel.chatUser = self.chatUser
+                        //truyen data vao chatUser trong ChatLogViewMode
+                        self.chatLogViewModel.fetchChatMessenger()
+                        // goi lai ham fetch data
+                        self.isShowChatLogView.toggle()
+                        //chuyen trang thai
                     } label: {
                         HStack(spacing: 16) {
-                            WebImage(url: URL(string: rmes.profileImageURL))
+                            WebImage(url: URL(string: rmes.imageProfileURL))
                                 .resizable()
                                 .scaledToFill()
                                 .clipped()
@@ -230,7 +244,61 @@ struct MainMessengerView: View {
             NewMessengerView(didSelectNewMessenger: { userdata in
                 self.isShowChatLogView.toggle()
                 self.chatUser = userdata
+                self.chatLogViewModel.chatUser = userdata
+                self.chatLogViewModel.fetchChatMessenger()
+                // goi lai fetchChatMessenger thi moi thuc hien ham fetch du lieu
             })
+        }
+    }
+}
+struct SearchBar: View {
+    @Binding var searchText: String
+    @Binding var isSearching: Bool
+    var body: some View {
+        HStack {
+            HStack {
+                TextField("Search",text: $searchText)
+                    .autocapitalization(.none)
+                    .padding(.leading, 26)
+                
+            }.padding(10)
+                .background(Color(.systemGray5))
+                .cornerRadius(8)
+                .padding(.horizontal)
+                .onTapGesture(perform: {
+                    isSearching = true
+                })
+                .overlay(
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                        Spacer()
+                        if isSearching {
+                            Button {
+                                self.searchText = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                            }
+                        }
+                    }.padding(.horizontal, 28)
+                        .foregroundColor(.gray)
+                )
+            
+            if isSearching {
+                Button {
+                    isSearching.toggle()
+                    self.searchText = ""
+                    
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    
+                } label: {
+                    Text("Cancel")
+                        .padding(.trailing)
+                        .padding(.leading, 0)
+                }
+                .transition(.move(edge: .trailing))
+                .animation(.spring())
+                
+            }
         }
     }
 }
@@ -240,3 +308,5 @@ struct MainMessengerView_Previews: PreviewProvider {
         MainMessengerView ()
     }
 }
+
+

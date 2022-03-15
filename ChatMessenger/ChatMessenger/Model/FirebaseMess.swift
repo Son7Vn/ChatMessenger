@@ -13,6 +13,7 @@ class FirebaseMess: NSObject {
     let auth: Auth
     let storage: Storage
     let firestore: Firestore
+    var currentUser: ChatUser?
     
     static let shared = FirebaseMess()
     

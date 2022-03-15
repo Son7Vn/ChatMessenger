@@ -16,7 +16,7 @@ struct RecentMessenger: Codable,Identifiable {
     let fromId: String
     let toId: String
     let email: String
-    let profileImageURL: String
+    let imageProfileURL: String
     let timestamp: Date
     
     var username: String {

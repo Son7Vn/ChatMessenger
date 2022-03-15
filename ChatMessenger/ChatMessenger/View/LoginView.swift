@@ -123,6 +123,7 @@ struct LoginView: View {
                 self.errorMessenger = "Failed to create user: \(err)"
                 return
             }
+            
             self.errorMessenger = "Succesfully to create user with uid: \(result?.user.uid ?? "")"
             self.password = ""
             persitImageToStorage()
@@ -132,7 +133,7 @@ struct LoginView: View {
     
     private func persitImageToStorage() {
         guard let uid = FirebaseMess.shared.auth.currentUser?.uid else {return}
-        guard let imagedata = image?.jpegData(compressionQuality: 0.5) else {return}
+        guard let imagedata = self.image?.jpegData(compressionQuality: 0.5) else {return}
         
         let ref = FirebaseMess.shared.storage.reference(withPath: uid)
         
@@ -156,6 +157,7 @@ struct LoginView: View {
     
     private func storageUserInformation(imageProfileURL: URL) {
         guard let uid = FirebaseMess.shared.auth.currentUser?.uid else {return}
+        
 
         let data = ["uid": uid,"email":email,"imageProfileURL": imageProfileURL.absoluteString] as [String : Any]
 

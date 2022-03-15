@@ -16,7 +16,8 @@ struct FirebaseConstant {
     static let toId = "toId"
     static let email = "email"
     static let text = "text"
-    static let profileImageURL = "profileImageURL"
+//    static let profileImageURL = "profileImageURL"
+    static let imageProfileURL = "imageProfileURL"
     static let timestamp = "timestamp"
     
 }
